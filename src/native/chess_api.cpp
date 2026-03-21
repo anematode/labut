@@ -25,7 +25,7 @@ std::optional<File> to_file(char c) {
 
 constexpr PieceType promoMap[26] = {
     [0] = NO_PIECE_TYPE, ['b'-'a'] = BISHOP, ['n'-'a'] = KNIGHT,
-    ['q'-'a'] = QUEEN, ['r'-'a'] = ROOK,
+    ['q'-'a'] = QUEEN, ['r'-'a'] = ROOK, ['k'-'a'] = KING
 };
 
 constexpr const char* PieceToChar = " PNBRQK   pnbrqk ";
@@ -73,7 +73,10 @@ public:
         
         switch (*read) {
         case 'O': case '0': {
-            if (read[1] != '-' || (read[2] != 'O' && read[2] != '0')) return std::nullopt;
+            if (read[1] != '-' || (read[2] != 'O' && read[2] != '0')) {
+                err = "Expected castle.";
+                return std::nullopt;
+            }
             int sq_step = 1;
             if (read[3] == '-' && (read[4] == 'O' || read[4] == '0')) {
                 sq_step = -1;
@@ -88,6 +91,8 @@ public:
                 }
                 toSq = Square(toSq + sq_step);
             }
+
+            err = "No castling rook found.";
             return std::nullopt;
         }
         case 'a'...'h': {
@@ -103,7 +108,7 @@ public:
 
                     // Potentially a promotion like e4b5n
                     PieceType pt = read[4] >= 'b' && read[4] <= 'q' ? promoMap[read[4] - 'a'] : NO_PIECE_TYPE;
-                    if (pt) {
+                    if (pt && pt != KING) {
                         candidate = Move::make<PROMOTION>(sq, toSq, pt);
                     } else {
                         candidate = { sq, toSq };
@@ -138,6 +143,8 @@ public:
                         goto found;
                     }
                 }
+
+                err = "No valid pawn.";
                 return std::nullopt;
             }
 
@@ -159,9 +166,9 @@ public:
             // We expect a square if there's a capture, there's a following file, or at least one missing disambiguation
             if (captures || to_file(*read) || (!fileDisambig.has_value() || !rankDisambig.has_value())) {
                 toFile = to_file(*read++);
-                if (!toFile.has_value()) return std::nullopt;
+                if (!toFile.has_value()) { err = "Expected file."; return std::nullopt; }
                 toRank = to_rank(*read++);
-                if (!toFile.has_value()) return std::nullopt;
+                if (!toRank.has_value()) { err = "Expected rank."; return std::nullopt; }
             } else {
                 // No disambiguations after all
                 toFile = std::exchange(fileDisambig, std::nullopt);
@@ -170,11 +177,14 @@ public:
 
             Square toSq = make_square(*toFile, *toRank);
 
-            Bitboard candidatePieces = pos.pieces(us, type_of(pc));
+            Bitboard candidatePieces = pos.pieces(us, type_of(pc)), originalCandidates = candidatePieces;
             if (fileDisambig) candidatePieces &= FileABB << *fileDisambig;
             if (rankDisambig) candidatePieces &= Rank1BB << 8 * *rankDisambig;
 
-            if (!candidatePieces) return std::nullopt;
+            if (!candidatePieces) {
+                err = std::string("No candidate pieces of type ") + PieceToChar[pc] + ".";
+                return std::nullopt;
+            }
 
             while (candidatePieces) {
                 Square fromSq = pop_lsb(candidatePieces);
@@ -189,6 +199,8 @@ public:
                     goto found;
                 }
             }
+
+            err = "No candidate piece can move to the target square. Bitboard: " + std::to_string(originalCandidates);
             return std::nullopt;
         }
         default:
@@ -197,23 +209,21 @@ public:
 found:;
 
         if (*read == '=') {  // read a promotion
-            printf("Reading promotion!\n");
             if (type_of(pc) != PAWN) return std::nullopt;
 
-            printf("Reading promotion2!\n");
             char c = read[1];
             if (c <= 'A' || c >= 'Z') return std::nullopt;
 
-            printf("Reading promotion3!\n");
             PieceType pt = promoMap[c - 'A'];
-            if (!pt) return std::nullopt;            
-            printf("Reading promotion4 %d %d!\n", candidate.from_sq(), candidate.to_sq());
+            if (!pt || pt == KING) return std::nullopt;            
 
             candidate = Move::make<PROMOTION>(candidate.from_sq(), candidate.to_sq(), pt);
         }
 
         if (pos.pseudo_legal(candidate) && pos.legal(candidate)) return candidate;
 
+        // TODO: be more specific here
+        err = "Illegal move (candidate was " + std::to_string(candidate.raw()) + ").";
         return std::nullopt;
     }
 
@@ -231,12 +241,15 @@ found:;
 
     void emit_lan_move(Move move) {
         emit_square(move.from_sq());
-        if (move.type_of() == CASTLING) {
+        if (move.type_of() == CASTLING && !pos.is_chess960()) {
+            // In standard chess, the target square is the king's final destination.
+            // In chess 960, the target square is the castling rook.
             bool kingside = move.to_sq() > move.from_sq();
             Square kingDest = make_square(kingside ? File(6) : File(2), rank_of(move.from_sq()));
             emit_square(kingDest);
             return;
         }
+
         emit_square(move.to_sq());
 
         if (move.type_of() == PROMOTION) {
@@ -327,7 +340,11 @@ found:;
 
             auto move = parse_move(read, end_move);
             if (!move.has_value()) {
-                err = "Illegal move: " + std::string(read, end_move - read);
+                auto existing = err;
+                err = "Illegal move: " + std::string(read, end_move - read) + " (current fen: " + pos.fen() + "). ";
+
+                if (existing.has_value()) *err += *existing;
+
                 return true; // fail
             }
 
