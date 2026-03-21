@@ -16,11 +16,11 @@ bool isspace(char c) {
 }
 
 std::optional<Rank> to_rank(char c) {
-    return (c >= '1' && c <= '8') ? Rank(c - '1') : std::nullopt;
+    return (c >= '1' && c <= '8') ? std::optional(Rank(c - '1')) : std::nullopt;
 }
 
 std::optional<File> to_file(char c) {
-    return (c >= 'a' && c <= 'h') ? File(c - 'a') : std::nullopt;
+    return (c >= 'a' && c <= 'h') ? std::optional(File(c - 'a')) : std::nullopt;
 }
 
 constexpr PieceType promoMap[26] = {
@@ -28,7 +28,7 @@ constexpr PieceType promoMap[26] = {
     ['q'-'a'] = QUEEN, ['r'-'a'] = ROOK,
 };
 
-constexpr char PieceToChar[16] = " PNBRQK   pnbrqk ";
+constexpr const char* PieceToChar = " PNBRQK   pnbrqk ";
 
 class ChessGame {
 public:
@@ -53,8 +53,8 @@ public:
         return err.has_value() ? *err : "";
     }
 
-    std::string getSanMovesString() const {
-        return std::string(sanMoves, sanMovesEnd - sanMoves);
+    std::string getMovesString() const {
+        return std::string(movesStr, movesEnd - movesStr);
     }
 
     
@@ -75,14 +75,14 @@ public:
                 sq_step = -1;
             }
 
-            Square ksq = square<KING>(us), fromSq = ksq, toSq = ksq;
+            Square ksq = pos.square<KING>(us), fromSq = ksq, toSq = ksq;
             // Search for a rook to castle to. SF encodes as king captures rook
-            while (toSq.is_ok() && rank_of(toSq) == rank_of(ksq)) {
-                if (pieces(us, ROOK) & toSq) {
+            while (is_ok(toSq) && rank_of(toSq) == rank_of(ksq)) {
+                if (pos.pieces(us, ROOK) & toSq) {
                     candidate = Move::make<CASTLING>(fromSq, toSq);
                     goto found;
                 }
-                toSq += sq_step;
+                toSq = Square(toSq + sq_step);
             }
             return std::nullopt;
         }
@@ -90,11 +90,11 @@ public:
             File f = *to_file(*read);
 
             if (auto r = to_rank(read[1])) {
-                Square sq = make_square(*f, *r);  // successfully read a square
+                Square sq = make_square(f, *r);  // successfully read a square
 
                 if (auto to_f = to_file(read[2])) {
                     // LAN move
-                    std::optional<File> to_r = to_rank(read[3]);
+                    std::optional<Rank> to_r = to_rank(read[3]);
                     Square toSq = make_square(*to_f, *to_r);
 
                     // Potentially a promotion like e4b5n
@@ -110,8 +110,8 @@ public:
                 // sq is the target of a forward pawn move, e.g. "e4"
                 int push = pawn_push(us);
                 for (int o : { sq - push, sq - 2 * push }) {
-                    Square fromSq { o };
-                    if (fromSq.is_ok() && pos.pieces(PAWN) & fromSq) {
+                    Square fromSq = Square(o);
+                    if (is_ok(fromSq) && pos.pieces(PAWN) & fromSq) {
                         read += 2;
                         candidate = Move(fromSq, sq);
                         goto found;
@@ -120,16 +120,16 @@ public:
                 return std::nullopt;
             }
 
-            pc = make_piece(PAWN, us);
+            pc = make_piece(us, PAWN);
             [[fallthrough]];
         }
         case 'B': case 'Q': case 'N': case 'K': case 'R': {
             if (!pc)
-                pc = make_piece(promoMap[*read++ - 'A'], us);
+                pc = make_piece(us, promoMap[*read++ - 'A']);
 
             std::optional<File> fileDisambig = to_file(*read);
             read += fileDisambig.has_value();
-            std::optional<File> rankDisambig = to_rank(*read);
+            std::optional<Rank> rankDisambig = to_rank(*read);
             read += rankDisambig.has_value();
 
             bool captures = *read == 'x';
@@ -155,7 +155,7 @@ public:
                 if (attacks & toSq) {
                     candidate = Move(fromSq, toSq);
 
-                    if (type_of(pc) == PAWN && !(pieces(~us) & toSq)) {
+                    if (type_of(pc) == PAWN && captures && !(pos.pieces(~us) & toSq)) {
                         candidate = Move::make<EN_PASSANT>(fromSq, toSq);
                     }
 
@@ -187,10 +187,10 @@ found:;
     }
 
     void emit_file(File f) {
-        *moveEnd++ = f + 'a';
+        *movesEnd++ = f + 'a';
     }
     void emit_rank(Rank r) {
-        *moveEnd++ = r + '1';
+        *movesEnd++ = r + '1';
     }
 
     void emit_square(Square sq) {
@@ -202,7 +202,7 @@ found:;
         emit_square(move.from_sq());
         emit_square(move.to_sq());
         if (move.type_of() == PROMOTION) {
-            *moveEnd++ = PieceToChar[make_piece(BLACK, move.promo_type())];
+            *movesEnd++ = PieceToChar[make_piece(BLACK, move.promotion_type())];
         }
     }
 
@@ -221,18 +221,18 @@ found:;
                 emit_square(toSq);
             } else { // "exd4"
                 emit_file(file_of(fromSq));
-                *moveEnd++ = 'x';
+                *movesEnd++ = 'x';
                 emit_square(toSq);
             }
             if (move.type_of() == PROMOTION) {
-                *moveEnd++ = '=';
-                *moveEnd++ = PieceToChar[m.promo_type()];
+                *movesEnd++ = '=';
+                *movesEnd++ = PieceToChar[move.promotion_type()];
             }
         } else {
             Bitboard others = pos.pieces(pt, us) ^ fromSq;
             Bitboard ambiguous = 0;
 
-            *moveEnd++ = PieceToChar[pt];
+            *movesEnd++ = PieceToChar[pt];
 
             while (others) {
                 Square sq = pop_lsb(others);
@@ -251,13 +251,13 @@ found:;
                 }
             }
 
-            if (pos.piece_on(toSq)) *moveEnd++ = 'x';
+            if (pos.piece_on(toSq)) *movesEnd++ = 'x';
 
             emit_square(toSq);
         }
     }
 
-    /** Returns true if an error occurred, false otherwise. The converted result can be fetched with getSanMovesString. Both LAN and SAN moves are accepted as input. */
+    /** Returns true if an error occurred, false otherwise. The converted result can be fetched with getMovesString. Both LAN and SAN moves are accepted as input. */
     bool playMoves(const std::string& moves, bool emitLAN) {
         err = std::nullopt;
 
@@ -277,9 +277,9 @@ found:;
             if (!move.has_value()) return true; // fail
 
             if (emitLAN) {
-                emit_lan_move(move);
+                emit_lan_move(*move);
             } else {
-                emit_san_move(move);
+                emit_san_move(*move);
             }
             
             states->emplace_back();
@@ -314,8 +314,8 @@ private:
     StateListPtr states;
 
     std::optional<std::string> err;
-    char *sanMovesEnd;
-    char sanMoves[100000];
+    char *movesEnd;
+    char movesStr[100000];
 };
 
 void initChess() {
@@ -335,7 +335,7 @@ EMSCRIPTEN_BINDINGS(chess_module) {
         .function("hasErr", &ChessGame::hasErr)
         .function("getErr", &ChessGame::getErr)
         .function("playMoves", &ChessGame::playMoves)
-        .function("getSanMovesString", &ChessGame::getSanMovesString)
+        .function("getMovesString", &ChessGame::getMovesString)
         .function("fenAt", &ChessGame::fenAt)
         .function("moveAt", &ChessGame::moveAt);
 }
