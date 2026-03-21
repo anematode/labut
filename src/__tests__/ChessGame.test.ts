@@ -179,6 +179,18 @@ describe('ChessGame', () => {
     expect(game.getErr()).toContain("Illegal move: dxe3");
     expect(err).toBe(true);
   });
+
+  it('survives a FEN round trip', async () => {
+    const exampleFens = [
+        '8/7n/4p1kp/8/6PK/1R6/8/8 b - - 0 1',
+        'rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1'
+    ];
+    game = await createGame();
+    for (const fen of exampleFens) {
+        game.reset(fen, false);
+        expect(game.fen()).toBe(fen);
+    }
+  });
 });
 
 describe("movesToLan", async () => {

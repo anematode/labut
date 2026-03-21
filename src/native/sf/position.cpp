@@ -188,13 +188,11 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
 */
 
     unsigned char      token;
-    std::istringstream ss(fenStr);
+    const char* read = fenStr.data();
 
     std::memset(reinterpret_cast<char*>(this), 0, sizeof(Position));
     std::memset(si, 0, sizeof(StateInfo));
     st = si;
-
-    ss >> std::noskipws;
 
     int numPieces = 0;
     int file      = FILE_A;
@@ -203,8 +201,9 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
     // 1. Piece placement
     for (;;)
     {
-        if (!(ss >> token))
+        if (!(token = *read))
             return PositionSetError("Invalid FEN. Unexpected end of stream.");
+        read++;
 
         if (isspace(token))
             break;
@@ -281,14 +280,17 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
         return PositionSetError("Unsupported position. Too many major pieces for BLACK.");
 
     // 2. Active color
-    if (!(ss >> token))
+    if (!(token = *read))
         return PositionSetError("Invalid FEN. Unexpected end of stream.");
+    read++;
     if (token != 'w' && token != 'b')
         return PositionSetError(std::string("Invalid FEN. Invalid side to move: ")
                                 + std::string(1, token));
     sideToMove = (token == 'w' ? WHITE : BLACK);
-    if (!(ss >> token) || !isspace(token) || ss.eof())
+    if (!(token = *read) || !isspace(token))
         return PositionSetError("Invalid FEN. Expected whitespace after side to move.");
+
+    while (isspace(*read)) read++;
 
     // 3. Castling availability. Compatible with 3 standards: Normal FEN standard,
     // Shredder-FEN that uses the letters of the columns on which the rooks began
@@ -301,15 +303,16 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
     int num_castling_rights = 0;
     for (;;)
     {
-        if (!(ss >> token))
+        if (!(token = *read))
             break;
+        read++;
 
         if (isspace(token))
             break;
 
         if (num_castling_rights == 0 && token == '-')
         {
-            ss >> std::ws;
+            while (isspace(*read)) read++;
             break;
         }
 
@@ -372,15 +375,20 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
             set_castling_right(c, rsq);
     }
 
+    while (isspace(*read)) read++;
+
     // 4. En passant square.
     // Ignore if square is invalid or not on side to move relative rank 6.
     bool          enpassant = false, legalEP = false;
     unsigned char col = '-', row;
-    ss >> col;
+    if (*read) {
+        col = *read++;
+    }
     if (col != '-')
     {
-        if (!(ss >> row))
+        if (!(row = *read))
             return PositionSetError("Invalid FEN. Unexpected end of stream.");
+        read++;
 
         if ((col >= 'a' && col <= 'h') && (row == (sideToMove == WHITE ? '6' : '3')))
         {
@@ -409,8 +417,17 @@ Position::set(const string& fenStr, bool isChess960, StateInfo* si) {
     if (!enpassant || !legalEP)
         st->epSquare = SQ_NONE;
 
+    auto read_int = [&read] () {
+        unsigned v = 0;
+        while (*read >= '0' && *read <= '9') v = 10 * v + (*read++ - '0');
+        return v;
+    };
+
     // 5-6. Halfmove clock and fullmove number
-    ss >> std::skipws >> st->rule50 >> gamePly;
+    while (isspace(*read)) read++;
+    st->rule50 = read_int();
+    while (isspace(*read)) read++;
+    gamePly = read_int();
 
     // Normally values larger than 99 would be pointless but we do support ignoring 50 move rule for TB purposes.
     // Limit at 2**15 as it's used multiplicativly with position evaluation during search.
@@ -554,8 +571,9 @@ std::optional<PositionSetError> Position::set(const string& code, Color c, State
 string Position::fen() const {
 
     int                emptyCnt;
-    std::ostringstream ss;
-
+    char output[1000];
+    char *write = output;
+    
     for (Rank r = RANK_8;; --r)
     {
         for (File f = FILE_A; f <= FILE_H; ++f)
@@ -564,38 +582,73 @@ string Position::fen() const {
                 ++emptyCnt;
 
             if (emptyCnt)
-                ss << emptyCnt;
+                *write++ = emptyCnt + '0';
 
             if (f <= FILE_H)
-                ss << PieceToChar[piece_on(make_square(f, r))];
+                *write++ = PieceToChar[piece_on(make_square(f, r))];
         }
 
         if (r == RANK_1)
             break;
-        ss << '/';
+        *write++ = '/';
     }
 
-    ss << (sideToMove == WHITE ? " w " : " b ");
+    memcpy(write, sideToMove == WHITE ? " w " : " b ", 3);
+    write += 3;
 
     if (can_castle(WHITE_OO))
-        ss << (chess960 ? char('A' + file_of(castling_rook_square(WHITE_OO))) : 'K');
+        *write++ = (chess960 ? char('A' + file_of(castling_rook_square(WHITE_OO))) : 'K');
 
     if (can_castle(WHITE_OOO))
-        ss << (chess960 ? char('A' + file_of(castling_rook_square(WHITE_OOO))) : 'Q');
+        *write++ = (chess960 ? char('A' + file_of(castling_rook_square(WHITE_OOO))) : 'Q');
 
     if (can_castle(BLACK_OO))
-        ss << (chess960 ? char('a' + file_of(castling_rook_square(BLACK_OO))) : 'k');
+        *write++ = (chess960 ? char('a' + file_of(castling_rook_square(BLACK_OO))) : 'k');
 
     if (can_castle(BLACK_OOO))
-        ss << (chess960 ? char('a' + file_of(castling_rook_square(BLACK_OOO))) : 'q');
+        *write++ = (chess960 ? char('a' + file_of(castling_rook_square(BLACK_OOO))) : 'q');
 
     if (!can_castle(ANY_CASTLING))
-        ss << '-';
+        *write++ = '-';
 
-    ss << (ep_square() == SQ_NONE ? " - " : " " + square_to_string(ep_square()) + " ")
-       << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
+    *write++ = ' ';
+    if (ep_square() == SQ_NONE)
+        *write++ = '-';
+    else {
+        *write++ = file_of(ep_square()) + 'a';
+        *write++ = rank_of(ep_square()) + '1';
+    }
+    *write++ = ' ';
 
-    return ss.str();
+    auto write_int = [&write] (int64_t a) { // a != LLONG_MIN
+        if (a < 0) {
+            *write++ = '-';
+            a = -a;
+        }
+
+        if (a == 0) {
+            *write++ = '0';
+            return;
+        }
+
+        char* start = write;
+        while (a) {
+            *write++ = (a % 10) + '0';
+            a /= 10;
+        }
+        char* end = write - 1;
+        while (start < end) {
+            std::swap(*start, *end);
+            start++; end--;
+        }
+    };
+
+    write_int(st->rule50);
+    *write++ = ' ';
+    write_int(1 + (gamePly - (sideToMove == BLACK)) / 2);
+    *write = '\0';
+
+    return output;
 }
 
 // Calculates st->blockersForKing[c] and st->pinners[~c],
@@ -1359,39 +1412,7 @@ bool Position::upcoming_repetition(int ply) const {
 
 // Flips position with the white and black sides reversed. This
 // is only useful for debugging e.g. for finding evaluation symmetry bugs.
-void Position::flip() {
-
-    string            f, token;
-    std::stringstream ss(fen());
-
-    for (Rank r = RANK_8;; --r)  // Piece placement
-    {
-        std::getline(ss, token, r > RANK_1 ? '/' : ' ');
-        f.insert(0, token + (f.empty() ? " " : "/"));
-
-        if (r == RANK_1)
-            break;
-    }
-
-    ss >> token;                        // Active color
-    f += (token == "w" ? "B " : "W ");  // Will be lowercased later
-
-    ss >> token;  // Castling availability
-    f += token + " ";
-
-    std::transform(f.begin(), f.end(), f.begin(),
-                   [](char c) { return char(islower(c) ? toupper(c) : tolower(c)); });
-
-    ss >> token;  // En passant square
-    f += (token == "-" ? token : token.replace(1, 1, token[1] == '3' ? "6" : "3"));
-
-    std::getline(ss, token);  // Half and full moves
-    f += token;
-
-    set(f, is_chess960(), st);
-
-    assert(pos_is_ok());
-}
+void Position::flip() { }
 
 
 bool Position::material_key_is_ok() const { return compute_material_key() == st->materialKey; }

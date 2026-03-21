@@ -371,6 +371,10 @@ found:;
         return false;
     }
 
+    std::string fen() const {
+        return pos.fen();
+    }
+
     std::string fenAt(int index) const {
         // todo
         return "";
@@ -406,6 +410,7 @@ EMSCRIPTEN_BINDINGS(chess_module) {
         .function("getErr", &ChessGame::getErr)
         .function("playMoves", &ChessGame::playMoves)
         .function("getMovesString", &ChessGame::getMovesString)
+        .function("fen", &ChessGame::fen)
         .function("fenAt", &ChessGame::fenAt)
         .function("moveAt", &ChessGame::moveAt);
 }
