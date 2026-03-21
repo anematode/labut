@@ -22,8 +22,6 @@
 #include <bitset>
 #include <initializer_list>
 
-#include "misc.h"
-
 namespace Stockfish {
 
 uint8_t PopCnt16[1 << 16];
@@ -96,6 +94,35 @@ void Bitboards::init() {
             }
     }
 }
+
+class PRNG {
+
+    uint64_t s;
+
+    uint64_t rand64() {
+
+        s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
+        return s * 2685821657736338717LL;
+    }
+
+   public:
+    PRNG(uint64_t seed) :
+        s(seed) {
+        assert(seed);
+    }
+
+    template<typename T>
+    T rand() {
+        return T(rand64());
+    }
+
+    // Special generator used to fast init magic numbers.
+    // Output values only have 1/8th of their bits set on average.
+    template<typename T>
+    T sparse_rand() {
+        return T(rand64() & rand64() & rand64());
+    }
+};
 
 namespace {
 // Computes all rook and bishop attacks at startup. Magic
