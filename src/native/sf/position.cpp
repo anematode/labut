@@ -32,7 +32,6 @@
 #include <utility>
 
 #include "bitboard.h"
-#include "history.h"
 #include "misc.h"
 #include "movegen.h"
 
@@ -831,8 +830,6 @@ bool Position::gives_check(Move m) const {
 // Makes a move, and saves all information necessary
 // to a StateInfo object. The move is assumed to be legal. Pseudo-legal
 // moves should be filtered out before this function is called.
-// If a pointer to the TT table is passed, the entry for the new position
-// will be prefetched, and likewise for shared history.
 void Position::do_move(Move                      m,
                        StateInfo&                newSt,
                        bool                      givesCheck) {
