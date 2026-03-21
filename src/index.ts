@@ -1,7 +1,7 @@
 import createModule from './native/chess_api.js';
 import type { MainModule, ChessGame } from './native/chess_api.d.ts';
 
-export type { MainModule, ChessGame };
+export type { ChessGame };
 
 let mod: MainModule;
 let game: ChessGame;
@@ -63,7 +63,7 @@ export type MoveConversionResult<T> = {
     error: string | null;
 };
 
-export function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConversionResult<any> {
+function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConversionResult<any> {
     let truncated = moves.length >= 1000;
     if (truncated) {
         moves = moves.slice(0, 1000);
