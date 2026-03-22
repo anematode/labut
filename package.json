@@ -3,6 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "./dist/labut.cjs.js",
+  "module": "./dist/labut.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/labut.es.js",
+      "require": "./dist/labut.cjs.js"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -10,6 +20,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "typescript": "~5.9.3",
     "vite": "^8.0.1",
     "vite-plugin-dts": "^4.5.4",

@@ -9,3 +9,7 @@ Intended for https://github.com/Yoshie2000/ChessTournamentViewer
 - [Install and activate Emscripten](https://emscripten.org/docs/getting_started/downloads.html).
 - Go into the `src/native` directory.
 - Run `make`.
+
+### Building the library
+
+`npx vite build`

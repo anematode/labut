@@ -17,5 +17,8 @@ export default defineConfig({
       },
     },
   },
-  plugins: [dts()], // Highly recommended for TS libraries
+  plugins: [dts({
+    tsconfigPath: "./tsconfig.json",
+    exclude: ["src/native/**", "src/__tests__/**"],
+  })],
 });

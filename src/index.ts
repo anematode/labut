@@ -11,12 +11,11 @@ let modulePromise: Promise<MainModule>;
 export async function init() {
   const isNode = typeof process !== 'undefined';
   if (!modulePromise) {
-    function locateFile(url: string) {
+    function locateFile() {
       if (!isNode) return wasmUrl;
 
-    const fs = require('fs');
-    const path = require('path');
-    return path.resolve(__dirname, './native/chess_api.wasm');
+      const path = require('path');
+     return path.resolve(__dirname, './native/chess_api.wasm');
     }
     modulePromise = createModule({ locateFile }).then((m) => {
       mod = m;
@@ -27,11 +26,13 @@ export async function init() {
   return modulePromise;
 };
 
+/*
 function getModule(): MainModule {
     if (!mod) throw new Error("Module not yet initialized! Must call init()");
 
     return mod;
 }
+*/
 
 const StartPos = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 function getGameSingleton(): ChessGame {
@@ -82,7 +83,7 @@ function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConver
     game.reset(fen, /*chess960=*/true);
     
     if (game.hasErr()) {
-        return { moves: [], err: game.getErr() };
+        return { moves: [], error: game.getErr() };
     }
 
     const joined = moves.join(" ");
