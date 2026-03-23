@@ -73,7 +73,7 @@ export type MoveConversionResult<T> = {
     error: string | null;
 };
 
-function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConversionResult<any> {
+function movesToSanOrLan(fen: string, moves: string[], lan: boolean): MoveConversionResult<any> {
     let truncated = moves.length >= 1000;
     if (truncated) {
         moves = moves.slice(0, 1000);
@@ -87,16 +87,16 @@ function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConver
     }
 
     const joined = moves.join(" ");
-    game.playMoves(joined, san);
+    game.playMoves(joined, lan);
 
     const converted = game.getMovesString().split(' ');
     let err = game.hasErr() ? game.getErr() : null;
 
     const convertedResult: (SANMove | LANMove)[] = [];
-    if (san) {
-        for (const mv of converted) convertedResult.push({ san: mv });
-    } else {
+    if (lan) {
         for (const mv of converted) convertedResult.push({ lan: mv });
+    } else {
+        for (const mv of converted) convertedResult.push({ san: mv });
     }
     
     return { moves: convertedResult, error: err };
@@ -111,7 +111,7 @@ function movesToSanOrLan(fen: string, moves: string[], san: boolean): MoveConver
  * You must call and await init() before using this function.
  */
 export function movesToSan(fen: string, moves: string[]): MoveConversionResult<SANMove> {
-    return movesToSanOrLan(fen, moves, true);
+    return movesToSanOrLan(fen, moves, false);
 }
 
 /**
@@ -122,5 +122,5 @@ export function movesToSan(fen: string, moves: string[]): MoveConversionResult<S
  * You must call and await init() before using this function.
  */
 export function movesToLan(fen: string, moves: string[]): MoveConversionResult<LANMove> {
-    return movesToSanOrLan(fen, moves, false);
+    return movesToSanOrLan(fen, moves, true);
 }
