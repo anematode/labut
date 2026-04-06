@@ -129,6 +129,8 @@ public:
                         candidate = Move::make<EN_PASSANT>(sq, toSq);
                     }
                     break;
+                }
+            }
         }
         case 'B': case 'Q': case 'N': case 'K': case 'R': {
             if (!pc)
