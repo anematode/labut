@@ -292,6 +292,20 @@ describe("movesToSan", async () => {
         expect(result.error).toBe(null);
         expect(result.moves.map(m => m.san).join(" ")).toBe("e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4 c3 Ba5 d4 exd4 O-O d3 Qb3 Qf6 e5 Qg6 Re1 Nge7 Ba3 b5 Qxb5 Rb8 Qa4 Bb6 Nbd2 Bb7 Ne4 Qf5 Bxd3 Qh5 Nf6+ gxf6 exf6 Rg8 Rad1 Qxf3 Rxe7+ Nxe7 Qxd7+ Kxd7 Bf5+ Ke8 Bd7+ Kf8 Bxe7#");
     });
+
+     it("works from a set position", () => {
+        const moves = "g1h2 f6f5 g2g3 e8d8 a1b1 c5e4 b1b2 g6h7 d1b1 h7g8 h2g1 g8f7 b2e2 d8e8 g1h2 e8d8 b1a1 d8e8 a1d1 e8d8 d1b1 d8g8 e2b2 g8d8 h2g1 d8e8 b1e1 c8c7 e1d1 e8d8 g1h2 d7c5 d1e1 f7g8 h2g1 d8e8 e1a1 c7c8 f2f4 g4f3 d4f3 e5e6 f3d4 e6e5 g1h2 c8c7 b4a3 c5d7 a1b1 e8b8 b2c2 e5a5"
+
+        const result = movesToSan(
+          "2k1r3/1p1n4/p4pb1/P1n1r2p/1BPN2pP/2P5/5PP1/R2R1BK1 w - - 1 32 ",
+          moves.split(" "),
+        );
+
+        expect(result.error).toBe(null);
+        expect(result.moves.map((m) => m.san).join(" ")).toBe(
+          "Kh2 f5 g3 Rd8 Rab1 Ne4 Rb2 Bh7 Rdb1 Bg8 Kg1 Bf7 Re2 Rde8 Kh2 Rd8 Ra1 Rde8 Rd1 Rd8 Rb1 Rg8 Reb2 Rd8 Kg1 Rde8 Re1 Kc7 Rd1 Rd8 Kh2 Ndc5 Re1 Bg8 Kg1 Rde8 Ra1 Kc8 f4 gxf3 Nxf3 R5e6 Nd4 Re5 Kh2 Kc7 Ba3 Nd7 Rab1 Rb8 Rc2 Rxa5",
+        );
+  });
 });
 
 describe("movesToLan", async () => {
