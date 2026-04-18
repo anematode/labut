@@ -205,7 +205,6 @@ public:
                     if (pos.pseudo_legal(move) && pos.legal(move)) {
                         candidate = move;
                         goto found;
-                        EM_AMBIGUIOUS
                     }
                 }
             }
