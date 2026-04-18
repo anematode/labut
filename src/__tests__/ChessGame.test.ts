@@ -317,4 +317,13 @@ describe("movesToLan", async () => {
         expect(result.error).toBe(null);
         expect(result.moves.map(m => m.lan).join(" ")).toBe("e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 b2b4 c5b4 c2c3 b4a5 d2d4 e5d4 e1h1 d4d3 d1b3 d8f6 e4e5 f6g6 f1e1 g8e7 c1a3 b7b5 b3b5 a8b8 b5a4 a5b6 b1d2 c8b7 d2e4 g6f5 c4d3 f5h5 e4f6 g7f6 e5f6 h8g8 a1d1 h5f3 e1e7 c6e7 a4d7 e8d7 d3f5 d7e8 f5d7 e8f8 a3e7");
     });
+
+    it("works on a set position with pinned piece", () => {
+      const result = movesToLan(
+        "8/1Q2bk2/P2p2p1/2pPp3/2P1P3/2N2n2/2KN1q2/8 w - - 1 61",
+        ["Nb1"],
+      );
+
+      expect(result.error).toBe(null);
+    });
 });

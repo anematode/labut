@@ -192,16 +192,22 @@ public:
                 Square fromSq = pop_lsb(candidatePieces);
                 Bitboard attacks = attacks_bb(pc, fromSq, pos.pieces());
                 if (attacks & toSq) {
-                    candidate = Move(fromSq, toSq);
+                    Move move = Move(fromSq, toSq);
 
                     if (type_of(pc) == PAWN && captures && toSq == pos.ep_square()) {
-                        candidate = Move::make<EN_PASSANT>(fromSq, toSq);
+                        move = Move::make<EN_PASSANT>(fromSq, toSq);
                     }
 
-                    goto found;
+                    if (type_of(pc) == PAWN && (rank_of(toSq) == RANK_1 || rank_of(toSq) == RANK_8)) {
+                        move = Move::make<PROMOTION>(fromSq, toSq, KNIGHT);
+                    }
+
+                    if (pos.pseudo_legal(move) && pos.legal(move)) {
+                        candidate = move;
+                        goto found;
+                    }
                 }
             }
-
             err = "No candidate piece can move to the target square. Bitboard: " + std::to_string(originalCandidates);
             return std::nullopt;
         }
@@ -210,21 +216,30 @@ public:
         }
 found:;
 
+        // Check for promotion in the input string
         if (*read == '=') {  // read a promotion
             if (type_of(pc) != PAWN) return std::nullopt;
 
             char c = read[1];
-            if (c <= 'A' || c >= 'Z') return std::nullopt;
+            if (c < 'A' || c > 'Z') return std::nullopt;
 
             PieceType pt = promoMap[c - 'A'];
             if (!pt || pt == KING) return std::nullopt;            
 
-            candidate = Move::make<PROMOTION>(candidate.from_sq(), candidate.to_sq(), pt);
+            Move promoMove = Move::make<PROMOTION>(candidate.from_sq(), candidate.to_sq(), pt);
+            
+            // Check if this specific promotion is legal
+            if (pos.pseudo_legal(promoMove) && pos.legal(promoMove)) {
+                return promoMove;
+            }
+            
+            err = "Illegal promotion move.";
+            return std::nullopt;
         }
 
+        // For non-promotion moves, check legality
         if (pos.pseudo_legal(candidate) && pos.legal(candidate)) return candidate;
 
-        // TODO: be more specific here
         err = "Illegal move (candidate was " + std::to_string(candidate.raw()) + ").";
         return std::nullopt;
     }
