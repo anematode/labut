@@ -335,12 +335,36 @@ describe("movesToSan", async () => {
     );
   });
 
-  it("work with underpromotion", () => {
+  it("work with rook underpromotion", () => {
     const fen = "1r4rk/1P5p/2n1p1n1/3pPpQ1/5P2/1R1BP2P/3qN2K/6R1 b - - 6 35";
     const result = movesToSan(fen, ["b8f8", "b7b8r"]);
 
     expect(result.error).toBe(null);
     expect(result.moves.map((m) => m.san).join(" ")).toBe("Rbf8 b8=R");
+  });
+
+  it("work with bishop underpromotion", () => {
+    const fen = "1r4rk/1P5p/2n1p1n1/3pPpQ1/5P2/1R1BP2P/3qN2K/6R1 b - - 6 35";
+    const result = movesToSan(fen, ["b8f8", "b7b8b"]);
+
+    expect(result.error).toBe(null);
+    expect(result.moves.map((m) => m.san).join(" ")).toBe("Rbf8 b8=B");
+  });
+
+  it("work with knight underpromotion", () => {
+    const fen = "1r4rk/1P5p/2n1p1n1/3pPpQ1/5P2/1R1BP2P/3qN2K/6R1 b - - 6 35";
+    const result = movesToSan(fen, ["b8f8", "b7b8n"]);
+
+    expect(result.error).toBe(null);
+    expect(result.moves.map((m) => m.san).join(" ")).toBe("Rbf8 b8=N");
+  });
+
+  it("work with queen promotion", () => {
+    const fen = "1r4rk/1P5p/2n1p1n1/3pPpQ1/5P2/1R1BP2P/3qN2K/6R1 b - - 6 35";
+    const result = movesToSan(fen, ["b8f8", "b7b8q"]);
+
+    expect(result.error).toBe(null);
+    expect(result.moves.map((m) => m.san).join(" ")).toBe("Rbf8 b8=Q");
   });
 });
 
