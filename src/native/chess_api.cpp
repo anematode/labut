@@ -103,7 +103,7 @@ public:
                     Square toSq = make_square(*to_f, *to_r);
 
                     // Potentially a promotion like e4b5n
-                    PieceType pt = read[4] >= 'b' && read[4] <= 'q' ? promoMap[read[4] - 'a'] : NO_PIECE_TYPE;
+                    PieceType pt = read[4] >= 'b' && read[4] <= 'r' ? promoMap[read[4] - 'a'] : NO_PIECE_TYPE;
                     if (pt && pt != KING) {
                         candidate = Move::make<PROMOTION>(sq, toSq, pt);
                     } else {
